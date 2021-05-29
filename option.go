@@ -1,4 +1,4 @@
-package serro
+package aerrors
 
 // Option represents a modification to the default behavior of a serro.
 type Option func(s *AsyncError)

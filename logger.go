@@ -1,4 +1,4 @@
-package serro
+package aerrors
 
 import (
 	"log"
