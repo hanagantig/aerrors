@@ -1,3 +1,5 @@
+// This package adds async errors handling support in GO. See the README for
+// more details.
 package aerrors
 
 import (
