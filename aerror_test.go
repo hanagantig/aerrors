@@ -14,7 +14,7 @@ type testHandler struct {
 	mu   sync.Mutex
 }
 
-func (th *testHandler) Handle(err error) {
+func (th *testHandler) HandleError(err error) {
 	th.mu.Lock()
 	defer th.mu.Unlock()
 
@@ -111,7 +111,7 @@ func TestWithBaseError(t *testing.T) {
 		t.Error("expected test error type")
 	}
 
-	if errors.Unwrap(th.errs[0]).Error() != testErr.Error() {
+	if errors.Unwrap(errors.Unwrap(th.errs[0])).Error() != testErr.Error() {
 		t.Error("expected test error next to the current in chain")
 	}
 }

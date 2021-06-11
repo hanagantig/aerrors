@@ -20,10 +20,10 @@ type AsyncError struct {
 
 // ErrorHandler is an interface for defining error handler
 type ErrorHandler interface {
-	Handle(err error)
+	HandleError(err error)
 }
 
-// New returns a new AsyncError handler, modified by the given options.
+// New returns a new AsyncError, modified by the given options.
 //
 // Available Settings
 //
@@ -40,7 +40,7 @@ type ErrorHandler interface {
 //     Default:     nil
 //
 //   ErrorHandler
-//     Description: Handler function for added errors
+//     Description: Handler function for added errors. By default handler will log your error with defined logger
 //     Default:     nil
 //
 // See "aerrors.With*" to modify the default behavior.
@@ -57,12 +57,12 @@ func New(opts ...Option) *AsyncError {
 	return a
 }
 
-// Add puts your error in queue to handle in blocking mode
+// Add puts your error in queue to handle. It blocks if we reached chan length
 func (e *AsyncError) Add(err error) {
 	e.errorChan <- err
 }
 
-// AddAsync puts your error in queue to handle in not blocking mode
+// AddAsync puts your error in queue in goroutine. It not blocks when we reached chan length
 func (e *AsyncError) AddAsync(err error) {
 	go e.Add(err)
 }
@@ -98,7 +98,7 @@ func Wrap(errp *error, format string, args ...interface{}) {
 	}
 }
 
-// PanicToError recovers panic and create an error from it
+// PanicToError recovers panic and creates an error from it
 func (e *AsyncError) PanicToError() {
 	if p := recover(); p != nil {
 		err := fmt.Errorf("%v", p)
@@ -117,10 +117,13 @@ func (e *AsyncError) Go(f func()) {
 
 func (e *AsyncError) handle(err error) {
 	err = fmt.Errorf("%w: %v", e.baseError, err)
-	e.logger.Error(err, "error handled")
+	Wrap(&err, "HandleError()")
+
 	if e.handler != nil {
 		go func() {
-			e.handler.Handle(err)
+			e.handler.HandleError(err)
 		}()
+	} else {
+		e.logger.Error(err, "aerror handled error")
 	}
 }

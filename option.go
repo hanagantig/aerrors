@@ -1,6 +1,6 @@
 package aerrors
 
-// Option represents a modification to the default behavior of a serro.
+// Option represents a modification to the default behavior of aerror.
 type Option func(s *AsyncError)
 
 // WithLogger uses the provided logger.
