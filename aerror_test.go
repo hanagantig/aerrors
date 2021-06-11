@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const sleepTime = 1 * time.Millisecond
+
 type testHandler struct {
 	errs []error
 	mu   sync.Mutex
@@ -39,69 +41,69 @@ func (e *testErrorType) Error() string {
 var testErr = testErrorType{}
 
 func TestErrorHandler(t *testing.T) {
-	errHandler := New(WithHandler(&th))
-	errHandler.StartHandle()
-	defer errHandler.Stop()
+	aerror := New(WithHandler(&th))
+	aerror.StartHandle()
+	defer aerror.Stop()
 	defer th.Reset()
 
-	errHandler.Add(errors.New("testing handler"))
+	aerror.Add(errors.New("testing handler"))
 
-	if len(errorChan) != 1 {
-		t.Error("expected chan len of 3")
+	if len(aerror.errorChan) != 1 {
+		t.Error("expected chan len of 1")
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(sleepTime)
 	if len(th.errs) != 1 {
 		t.Error("expected to have an error")
 	}
 
-	if len(errorChan) != 0 {
+	if len(aerror.errorChan) != 0 {
 		t.Error("chan is not empty")
 	}
 }
 
 func TestErrorHandlerMultipleAdd(t *testing.T) {
-	errHandler := New(WithHandler(&th))
-	errHandler.StartHandle()
-	defer errHandler.Stop()
+	aerror := New(WithHandler(&th))
+	aerror.StartHandle()
+	defer aerror.Stop()
 	defer th.Reset()
 
-	errHandler.Add(errors.New("testing handler 1"))
-	errHandler.Add(errors.New("testing handler 2"))
-	errHandler.Add(errors.New("testing handler 3"))
+	aerror.Add(errors.New("testing handler 1"))
+	aerror.Add(errors.New("testing handler 2"))
+	aerror.Add(errors.New("testing handler 3"))
 
-	if len(errorChan) != 3 {
-		t.Error("expected chan len of 3", len(errorChan))
+	if len(aerror.errorChan) != 3 {
+		t.Error("expected chan len of 3", len(aerror.errorChan))
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(sleepTime)
 	if len(th.errs) != 3 {
 		t.Error("expected to have 3 errors")
 	}
 
-	if len(errorChan) != 0 {
+	if len(aerror.errorChan) != 0 {
 		t.Error("chan is not empty")
 	}
 }
 
 func TestWithBaseError(t *testing.T) {
-	errHandler := New(WithHandler(&th), WithBaseError(&testErr))
-	errHandler.StartHandle()
-	defer errHandler.Stop()
+	aerror := New(WithHandler(&th), WithBaseError(&testErr))
+	aerror.StartHandle()
+	defer aerror.Stop()
 	defer th.Reset()
 
-	errHandler.Add(errors.New("testing handler with base error"))
+	aerror.Add(errors.New("testing handler with base error"))
 
-	if len(errorChan) != 1 {
+	if len(aerror.errorChan) != 1 {
 		t.Error("expected chan len of 1")
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(sleepTime)
 	if len(th.errs) != 1 {
 		t.Error("expected to have an errors")
 	}
 
-	if len(errorChan) != 0 {
+	if len(aerror.errorChan) != 0 {
 		t.Error("chan is not empty")
 	}
 
@@ -115,9 +117,9 @@ func TestWithBaseError(t *testing.T) {
 }
 
 func TestPanicInGoroutine(t *testing.T) {
-	errHandler := New(WithHandler(&th), WithBaseError(&testErr))
-	errHandler.StartHandle()
-	defer errHandler.Stop()
+	aerror := New(WithHandler(&th), WithBaseError(&testErr))
+	aerror.StartHandle()
+	defer aerror.Stop()
 	defer th.Reset()
 
 	if len(th.errs) != 0 {
@@ -125,10 +127,10 @@ func TestPanicInGoroutine(t *testing.T) {
 	}
 
 	go func() {
-		defer PanicToError()
+		defer aerror.PanicToError()
 		panic("test panic")
 	}()
-	time.Sleep(1 * time.Second)
+	time.Sleep(sleepTime)
 
 	if len(th.errs) != 1 {
 		t.Error("expected to have an error")
@@ -136,9 +138,9 @@ func TestPanicInGoroutine(t *testing.T) {
 }
 
 func TestPanicInGoroutineWrapper(t *testing.T) {
-	errHandler := New(WithHandler(&th), WithBaseError(&testErr))
-	errHandler.StartHandle()
-	defer errHandler.Stop()
+	aerror := New(WithHandler(&th), WithBaseError(&testErr))
+	aerror.StartHandle()
+	defer aerror.Stop()
 	defer th.Reset()
 
 	if len(th.errs) != 0 {
@@ -148,10 +150,33 @@ func TestPanicInGoroutineWrapper(t *testing.T) {
 	f := func() {
 		panic("test panic in Go wrapper")
 	}
-	Go(f)
-	time.Sleep(1 * time.Second)
+	aerror.Go(f)
+	time.Sleep(sleepTime)
 
 	if len(th.errs) != 1 {
 		t.Error("expected to have an error")
+	}
+}
+
+func TestOverflowErrorChan(t *testing.T) {
+	aerror := New(WithHandler(&th), WithBaseError(&testErr), WithErrorChanLen(2))
+	defer aerror.Stop()
+	defer th.Reset()
+
+	aerror.Add(errors.New("testing handler 1"))
+	aerror.Add(errors.New("testing handler 2"))
+	aerror.AddAsync(errors.New("testing handler 3"))
+	aerror.AddAsync(errors.New("testing handler 4"))
+	aerror.AddAsync(errors.New("testing handler 5"))
+
+	if len(aerror.errorChan) != 2 {
+		t.Error("expected to have 2 errors in chan")
+	}
+
+	aerror.StartHandle()
+
+	time.Sleep(sleepTime)
+	if len(th.errs) != 5 {
+		t.Error("expected to have 2 errors in chan")
 	}
 }

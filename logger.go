@@ -7,7 +7,7 @@ import (
 )
 
 // DefaultLogger is used if none is specified.
-var DefaultLogger Logger = PrintfLogger(log.New(os.Stdout, "serro: ", log.LstdFlags))
+var DefaultLogger Logger = PrintfLogger(log.New(os.Stdout, "aerrors: ", log.LstdFlags))
 
 // Logger is the interface used in this package for logging, so that any backend
 // can be plugged in. It is a subset of the github.com/go-logr/logr interface.
