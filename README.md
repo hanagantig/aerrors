@@ -40,8 +40,8 @@ func main() {
     
     server := runHTTP()
     
-    // runs crashFunc in goroutine with recover panic and handle error
-    aerrors.Go(crashFunc)
+    // runs crashFunc in panic-safe goroutine and adds error to handle
+    aerror.Go(crashFunc)
 
     server.Stop()
     aerror.Stop()
@@ -60,7 +60,7 @@ import (
 
 type CustomErrorHandler struct {}
 func (eh *CustomErrorHandler) Handle(err error)  {
-    // do what you want with error here
+    // do what you want with your error here
 }
 
 func main() {

@@ -23,3 +23,10 @@ func WithHandler(h ErrorHandler) Option {
 		e.handler = h
 	}
 }
+
+// WithErrorChanLen sets the error chan length.
+func WithErrorChanLen(l int) Option {
+	return func(e *AsyncError) {
+		e.errorChan = make(chan error, l)
+	}
+}
