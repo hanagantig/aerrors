@@ -3,9 +3,11 @@
 
 # aerrors
 
-Package aerrors adds **async errors handling** support in GO
+Package aerrors adds **async errors** handling support in GO
 
-This is useful when you want to recover panics in all your goroutines, build an error from it and handle all such errors in one place (logging them or monitor).
+This is effective when you want to recover panics in all your goroutines, build an error from it and handle all such errors in one place (logging them or monitor).
+
+There is additionally the `Wrap()` method, which helps you to build manually 'stacktrace' with errors chain. 
 
 To download the package, run:
 ```bash
@@ -48,8 +50,8 @@ func main() {
 }
 ```
 
-You also can use it with your custom handler. 
-Just use available option aerrors.WithHandler()
+You also can implement your custom handler. 
+Merely use available option aerrors.WithHandler()
 
 ```go
 package main
@@ -71,3 +73,36 @@ func main() {
     aerror.Stop()
 }
 ```
+
+In addition, you are capable to build your own stack trace with needed functions contains all desired information.
+```go
+package main
+
+import (
+    "fmt"
+    "errors"
+    "github.com/hanagantig/aerrors"
+)
+
+func foo(id int) (err error){
+    defer aerrors.Wrap(&err, "foo(%v)", id)
+
+    err = errors.New("errors in foo")
+    return
+}
+
+func bar(id int, tag string) (err error)  {
+    defer aerrors.Wrap(&err, "bar(%v, %v)", id, tag)
+    
+    err = foo(id)
+    return
+}
+
+func main() {
+    err := bar(1, "aerrors_wrap")
+    fmt.Printf("%v", err)   
+}
+
+// output
+// bar(1, aerrors_wrap): foo(1): errors in foo
+``` 
