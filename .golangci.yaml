@@ -1,0 +1,22 @@
+---
+run:
+  concurency: 4
+  deadline: 2m
+  issues-exit-code: 1
+  tests: false
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+linters:
+  enable-all: true
+  fast: false
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 100
+  max-same-issues: 4
+  new: false
+
