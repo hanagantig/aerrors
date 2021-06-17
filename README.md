@@ -103,6 +103,6 @@ func main() {
     fmt.Printf("%v", err)   
 }
 
-// output
+// output.
 // bar(1, aerrors_wrap): foo(1): errors in foo
 ``` 

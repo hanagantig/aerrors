@@ -6,9 +6,6 @@ import (
 	"strings"
 )
 
-// DefaultLogger is used if none is specified.
-var DefaultLogger Logger = PrintfLogger(log.New(os.Stdout, "aerrors: ", log.LstdFlags))
-
 // Logger is the interface used in this package for logging, so that any backend
 // can be plugged in. It is a subset of the github.com/go-logr/logr interface.
 type Logger interface {
@@ -18,6 +15,10 @@ type Logger interface {
 	Error(err error, msg string, keysAndValues ...interface{})
 }
 
+// DefaultLogger is used if none is specified.
+func createDefaultLogger() Logger {
+	return PrintfLogger(log.New(os.Stdout, "aerrors: ", log.LstdFlags))
+}
 
 // PrintfLogger wraps a Printf-based logger (such as the standard library "log")
 // into an implementation of the Logger interface which logs errors only.
@@ -39,8 +40,10 @@ func (pl printfLogger) Info(msg string, keysAndValues ...interface{}) {
 }
 
 func (pl printfLogger) Error(err error, msg string, keysAndValues ...interface{}) {
+	const BaseLength = 2
+
 	pl.logger.Printf(
-		formatString(len(keysAndValues)+2),
+		formatString(len(keysAndValues)+BaseLength),
 		append([]interface{}{msg, "error", err}, keysAndValues...)...)
 }
 
@@ -48,15 +51,20 @@ func (pl printfLogger) Error(err error, msg string, keysAndValues ...interface{}
 // key/values.
 func formatString(numKeysAndValues int) string {
 	var sb strings.Builder
+
 	sb.WriteString("%s")
+
 	if numKeysAndValues > 0 {
 		sb.WriteString(", ")
 	}
+
 	for i := 0; i < numKeysAndValues/2; i++ {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
+
 		sb.WriteString("%v=%v")
 	}
+
 	return sb.String()
 }

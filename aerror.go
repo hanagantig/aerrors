@@ -1,26 +1,22 @@
-// This package adds async errors handling support in GO. See the README for
-// more details.
+// Package aerrors adds async errors handling support in GO. See the README for more details.
 package aerrors
 
 import (
 	"fmt"
 )
 
-var defaultErrorChanLen = 10
-
 // AsyncError queues your added errors in chan and handle them by provided handler method.
 // It may be started and stopped and run your func in a panic-safe goroutine.
 type AsyncError struct {
-	logger       Logger
-	add          chan error
-	stop         chan struct{}
-	baseError    error
-	handler      ErrorHandler
-	errorChanLen int
-	errorChan    chan error
+	logger    Logger
+	add       chan error
+	stop      chan struct{}
+	baseError error
+	handler   ErrorHandler
+	errorChan chan error
 }
 
-// ErrorHandler is an interface for defining error handler
+// ErrorHandler is an interface for defining error handler.
 type ErrorHandler interface {
 	HandleError(err error)
 }
@@ -47,34 +43,44 @@ type ErrorHandler interface {
 //
 // See "aerrors.With*" to modify the default behavior.
 func New(opts ...Option) *AsyncError {
+	const defaultErrorChanLen = 10
+
 	a := &AsyncError{
 		add:       make(chan error),
 		stop:      make(chan struct{}),
-		logger:    DefaultLogger,
 		errorChan: make(chan error, defaultErrorChanLen),
+		logger:    nil,
+		handler:   nil,
+		baseError: nil,
 	}
+
 	for _, opt := range opts {
 		opt(a)
 	}
+
+	if a.logger == nil {
+		a.logger = createDefaultLogger()
+	}
+
 	return a
 }
 
-// Add puts your error in queue to handle. It blocks if we reached chan length
+// Add puts your error in queue to handle. It blocks if we reached chan length.
 func (e *AsyncError) Add(err error) {
 	e.errorChan <- err
 }
 
-// AddAsync puts your error in queue in goroutine. It not blocks when we reached chan length
+// AddAsync puts your error in queue in goroutine. It not blocks when we reached chan length.
 func (e *AsyncError) AddAsync(err error) {
 	go e.Add(err)
 }
 
-// Stop handle errors
+// Stop handle errors.
 func (e *AsyncError) Stop() {
 	e.stop <- struct{}{}
 }
 
-// StartHandle starts handling errors
+// StartHandle starts handling errors.
 func (e *AsyncError) StartHandle() {
 	go e.start()
 }
@@ -87,29 +93,30 @@ func (e *AsyncError) start() {
 
 		case <-e.stop:
 			e.logger.Info("stop")
+
 			return
 		}
 	}
 }
 
-// Wrap your error
-func Wrap(errp *error, format string, args ...interface{}) {
+// Wrap your error.
+func Wrap(errp *error, format string, args ...interface{}) { // nolint: goprintffuncname
 	if errp != nil && *errp != nil {
 		s := fmt.Sprintf(format, args...)
 		*errp = fmt.Errorf("%s: %w", s, *errp)
 	}
 }
 
-// PanicToError recovers panic and creates an error from it
+// PanicToError recovers panic and creates an error from it.
 func (e *AsyncError) PanicToError() {
 	if p := recover(); p != nil {
-		err := fmt.Errorf("%v", p)
+		err := fmt.Errorf("%v", p) //nolint: goerr113
 		Wrap(&err, "recoverToError()")
 		e.errorChan <- err
 	}
 }
 
-// Go runs your function in panic-safe goroutine
+// Go runs your function in panic-safe goroutine.
 func (e *AsyncError) Go(f func()) {
 	go func() {
 		defer e.PanicToError()
