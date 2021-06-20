@@ -276,3 +276,11 @@ func TestWorkWithClosedAerror(t *testing.T) {
 		t.Error("aerror should not be closed")
 	}
 }
+
+func TestCloseClosedAerror(t *testing.T) {
+	aerror := New(WithHandler(&th), WithBaseError(&testErr), WithErrorChanLen(2))
+	defer th.Reset()
+
+	aerror.Close()
+	aerror.Close()
+}

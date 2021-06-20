@@ -124,6 +124,10 @@ func (e *AsyncError) stop() {
 // Close the aerror gracefully. It waits to handle all errors from queue.
 // You can't use it after closing and have to create a new one.
 func (e *AsyncError) Close() {
+	if e.IsClosed() {
+		return
+	}
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
