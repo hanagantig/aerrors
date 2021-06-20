@@ -61,16 +61,16 @@ import (
 )
 
 type CustomErrorHandler struct {}
-func (eh *CustomErrorHandler) Handle(err error)  {
+func (eh *CustomErrorHandler) HandleError(err error)  {
     // do what you want with your error here
 }
 
 func main() {
     h := CustomErrorHandler{}
     aerror := aerrors.New(aerrors.WithHandler(&h))
-    aerror.StartHandle()
+    _ = aerror.StartHandle()
     
-    aerror.Stop()
+    aerror.Close() // for graceful shutdown
 }
 ```
 

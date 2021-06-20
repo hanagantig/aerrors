@@ -3,7 +3,9 @@
 package aerrors
 
 import (
+	"errors"
 	"fmt"
+	"sync"
 )
 
 var defaultErrorChanLen = 10
@@ -12,12 +14,15 @@ var defaultErrorChanLen = 10
 // It may be started and stopped and run your func in a panic-safe goroutine.
 type AsyncError struct {
 	logger       Logger
-	add          chan error
-	stop         chan struct{}
+	stopCh       chan struct{}
 	baseError    error
 	handler      ErrorHandler
 	errorChanLen int
 	errorChan    chan error
+	closed       bool
+	running      bool
+	mu           sync.Mutex
+	wg           sync.WaitGroup
 }
 
 // ErrorHandler is an interface for defining error handler
@@ -48,8 +53,7 @@ type ErrorHandler interface {
 // See "aerrors.With*" to modify the default behavior.
 func New(opts ...Option) *AsyncError {
 	a := &AsyncError{
-		add:       make(chan error),
-		stop:      make(chan struct{}),
+		stopCh:    make(chan struct{}),
 		logger:    DefaultLogger,
 		errorChan: make(chan error, defaultErrorChanLen),
 	}
@@ -59,34 +63,111 @@ func New(opts ...Option) *AsyncError {
 	return a
 }
 
+// IsClosed checks if it closed
+func (e *AsyncError) IsClosed() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	return e.closed
+}
+
+// IsRunning checks if errors handles by handle func
+func (e *AsyncError) IsRunning() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	return e.running
+}
+
 // Add puts your error in queue to handle. It blocks if we reached chan length
-func (e *AsyncError) Add(err error) {
+func (e *AsyncError) Add(err error) error {
+	if e.IsClosed() {
+
+		return errors.New("aerrors: can't add error to closed chan")
+	}
+
+	e.wg.Add(1)
 	e.errorChan <- err
+
+	return nil
 }
 
 // AddAsync puts your error in queue in goroutine. It not blocks when we reached chan length
-func (e *AsyncError) AddAsync(err error) {
-	go e.Add(err)
+func (e *AsyncError) AddAsync(err error) error {
+	if e.IsClosed() {
+
+		return errors.New("aerrors: can't async add error to closed chan")
+	}
+	e.wg.Add(1)
+	go func() { e.errorChan <- err }()
+
+	return nil
 }
 
 // Stop handle errors
 func (e *AsyncError) Stop() {
-	e.stop <- struct{}{}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.stop()
+}
+
+func (e *AsyncError) stop() {
+	if !e.running {
+		return
+	}
+
+	e.running = false
+	e.stopCh <- struct{}{}
+}
+
+// Close the aerror gracefully. It waits to handle all errors from queue.
+// You can't use it after closing and have to create a new one.
+func (e *AsyncError) Close() {
+	if e.IsClosed() {
+		return
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.closed = true
+	if e.running {
+		e.wg.Wait()
+		e.stop()
+	}
+
+	close(e.errorChan)
+	close(e.stopCh)
 }
 
 // StartHandle starts handling errors
-func (e *AsyncError) StartHandle() {
+func (e *AsyncError) StartHandle() error {
+	if e.IsClosed() {
+
+		return errors.New("aerrors: can't start handle for closed aerror")
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.running = true
 	go e.start()
+
+	return nil
 }
 
 func (e *AsyncError) start() {
 	for {
 		select {
 		case newError := <-e.errorChan:
-			e.handle(newError)
+			if newError != nil {
+				e.handle(newError)
+				e.wg.Done()
+			}
 
-		case <-e.stop:
-			e.logger.Info("stop")
+		case <-e.stopCh:
+			e.logger.Info("aerrors: stop")
 			return
 		}
 	}
@@ -105,7 +186,7 @@ func (e *AsyncError) PanicToError() {
 	if p := recover(); p != nil {
 		err := fmt.Errorf("%v", p)
 		Wrap(&err, "recoverToError()")
-		e.errorChan <- err
+		_ = e.Add(err)
 	}
 }
 

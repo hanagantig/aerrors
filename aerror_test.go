@@ -180,3 +180,107 @@ func TestOverflowErrorChan(t *testing.T) {
 		t.Error("expected to have 2 errors in chan")
 	}
 }
+
+func TestCloseStartedAerror(t *testing.T) {
+	aerror := New(WithHandler(&th), WithBaseError(&testErr), WithErrorChanLen(2))
+	defer th.Reset()
+
+	if len(th.errs) > 0 {
+		t.Error("result errors should be empty")
+	}
+	err := aerror.Add(errors.New("testing handler 1"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = aerror.Add(errors.New("testing handler 2"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = aerror.AddAsync(errors.New("testing handler 3"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = aerror.AddAsync(errors.New("testing handler 4"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = aerror.StartHandle()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(aerror.errorChan) != 2 {
+		t.Error("expected to have 2 errors in chan")
+	}
+
+	err = aerror.StartHandle()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !aerror.running {
+		t.Error("aerror should be started")
+	}
+	if aerror.IsClosed() {
+		t.Error("aerror should not be closed")
+	}
+
+	time.Sleep(sleepTime)
+	aerror.Close()
+
+	if len(th.errs) != 4 {
+		t.Error("expected to have 4 errors in chan after waiting in close")
+	}
+
+	if aerror.running {
+		t.Error("aerror should be stopped")
+	}
+	if !aerror.IsClosed() {
+		t.Error("aerror should be closed")
+	}
+}
+
+func TestWorkWithClosedAerror(t *testing.T) {
+	aerror := New(WithHandler(&th), WithBaseError(&testErr), WithErrorChanLen(2))
+	defer th.Reset()
+
+	aerror.Close()
+
+	err := aerror.Add(errors.New("testing handler 1"))
+	if err == nil {
+		t.Error("expected an error while adding an error to closed aerror")
+	}
+
+	err = aerror.AddAsync(errors.New("testing handler 2"))
+	if err == nil {
+		t.Error("expected an error while async adding an error to closed aerror")
+	}
+
+	if len(th.errs) > 0 {
+		t.Error("expected to have no handled errors")
+	}
+
+	err = aerror.StartHandle()
+	if err == nil {
+		t.Error("expected an error while starting handle an error to closed aerror")
+	}
+
+	if aerror.running {
+		t.Error("aerror should be stopped")
+	}
+	if !aerror.IsClosed() {
+		t.Error("aerror should not be closed")
+	}
+}
+
+func TestCloseClosedAerror(t *testing.T) {
+	aerror := New(WithHandler(&th), WithBaseError(&testErr), WithErrorChanLen(2))
+	defer th.Reset()
+
+	aerror.Close()
+	aerror.Close()
+}
