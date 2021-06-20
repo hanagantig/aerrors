@@ -68,9 +68,9 @@ func (eh *CustomErrorHandler) HandleError(err error)  {
 func main() {
     h := CustomErrorHandler{}
     aerror := aerrors.New(aerrors.WithHandler(&h))
-    aerror.StartHandle()
+    _ = aerror.StartHandle()
     
-    aerror.Stop()
+    aerror.Close() // for graceful shutdown
 }
 ```
 
