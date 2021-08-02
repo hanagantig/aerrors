@@ -9,6 +9,7 @@ This is effective when you want to recover panics in all your goroutines, build 
 
 There is additionally the `Wrap()` method, which helps you to build manually 'stacktrace' with errors chain. 
 
+## Getting started
 To download the package, run:
 ```bash
 go get github.com/hanagantig/aerrors
@@ -24,7 +25,7 @@ It requires Go 1.13 or later.
 Refer to the documentation here:
 http://godoc.org/github.com/hanagantig/aerrors
 
-## Usage
+### Basic usage
 ```go
 package main
 
@@ -50,8 +51,9 @@ func main() {
 }
 ```
 
+### With custom handler function
 You also can implement your custom handler. 
-Merely use available option aerrors.WithHandler()
+Merely use available option aerrors.WithHandler().
 
 ```go
 package main
@@ -74,6 +76,43 @@ func main() {
 }
 ```
 
+### Global usage
+As well as create particular error struct you can initialize it globally and call
+from where you want.
+```go
+package main
+
+import (
+    "errors"
+    "log"
+    "github.com/hanagantig/aerrors"
+)
+
+func foo(id int) (err error) {
+    aerrors.Get().Go(crashFunc)
+    aerrors.Get().Add(errors.New("some error to handle"))
+}
+
+func crashFunc()  {
+    panic("crashFunc panic")
+}
+
+func main() {
+    err := aerrors.Init()
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    aerrors.Get().StartHandle()
+
+    server := runHTTP()
+    
+    server.Stop()
+    aerrors.Get().Stop()
+}
+```
+
+### Some more features
 In addition, you are capable to build your own stack trace with needed functions contains all desired information.
 ```go
 package main
