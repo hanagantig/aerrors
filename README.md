@@ -1,5 +1,5 @@
 [![GoDoc](http://godoc.org/github.com/hanagantig/aerrors?status.png)](http://godoc.org/github.com/hanagantig/aerrors)
-[![Build Status](https://travis-ci.org/robfig/cron.svg?branch=master)](https://travis-ci.com/hanagantig/aerrors)
+[![Build Status](https://travis-ci.org/hanagantig/aerrors.svg?branch=main)](https://travis-ci.com/hanagantig/aerrors)
 
 # aerrors
 
