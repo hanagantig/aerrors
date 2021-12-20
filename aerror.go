@@ -162,8 +162,10 @@ func (e *AsyncError) start() {
 		select {
 		case newError := <-e.errorChan:
 			if newError != nil {
-				e.handle(newError)
-				e.wg.Done()
+				go func() {
+					defer e.wg.Done()
+					e.handle(newError)
+				}()
 			}
 
 		case <-e.stopCh:
@@ -203,9 +205,7 @@ func (e *AsyncError) handle(err error) {
 	Wrap(&err, "HandleError()")
 
 	if e.handler != nil {
-		go func() {
-			e.handler.HandleError(err)
-		}()
+		e.handler.HandleError(err)
 	} else {
 		e.logger.Error(err, "aerror handled error")
 	}
