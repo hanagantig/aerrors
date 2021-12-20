@@ -3,12 +3,12 @@ package aerrors
 import "errors"
 
 var gAerror *AsyncError
-var hasInitialized = errors.New("error: try to initialize global aerror while other is running")
+var errHasInitialized = errors.New("error: try to initialize global aerror while other is running")
 
 // Init a single globally async error handler
 func Init(opts ...Option) error {
 	if gAerror != nil && gAerror.IsRunning() {
-		return hasInitialized
+		return errHasInitialized
 	}
 	a := New(opts...)
 	gAerror = a
